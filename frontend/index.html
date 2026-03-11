@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Powered Research Paper Summarizer</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 780px;
+      background: #020617;
+      border-radius: 16px;
+      padding: 1.75rem 2rem 2rem;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(75, 85, 99, 0.4);
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.3rem;
+      background: linear-gradient(135deg, #38bdf8, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: #9ca3af;
+      font-size: 0.9rem;
+      margin-bottom: 1.4rem;
+    }
+    .upload {
+      border: 2px dashed #374151;
+      border-radius: 12px;
+      padding: 1.6rem 1.2rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    input[type="file"] {
+      margin-top: 0.6rem;
+    }
+    button {
+      margin-top: 1rem;
+      width: 100%;
+      border: none;
+      border-radius: 9999px;
+      padding: 0.75rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #6366f1, #ec4899);
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: #e5e7eb;
+    }
+    pre {
+      margin-top: 1.2rem;
+      padding: 1rem;
+      background: #020617;
+      border-radius: 12px;
+      max-height: 24rem;
+      overflow: auto;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      border: 1px solid #1f2937;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>AI-Powered Research Paper Summarizer</h1>
+    <p>Upload a PDF, and a local Ollama model will generate a structured summary.</p>
+
+    <div class="upload">
+      <input type="file" id="file-input" accept="application/pdf" />
+      <div id="file-name"></div>
+      <button id="upload-btn" disabled>Upload &amp; Summarize</button>
+    </div>
+
+    <div class="status" id="status"></div>
+    <pre id="summary" style="display:none;"></pre>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("file-input");
+    const fileName = document.getElementById("file-name");
+    const uploadBtn = document.getElementById("upload-btn");
+    const statusEl = document.getElementById("status");
+    const summaryEl = document.getElementById("summary");
+
+    let currentJobId = null;
+    let pollAttempts = 0;
+    const MAX_POLL_ATTEMPTS = 120;
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (file) {
+        fileName.textContent = file.name;
+        uploadBtn.disabled = false;
+      } else {
+        fileName.textContent = "";
+        uploadBtn.disabled = true;
+      }
+    });
+
+    uploadBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      uploadBtn.disabled = true;
+      statusEl.textContent = "Uploading PDF and starting summarization...";
+      summaryEl.style.display = "none";
+      summaryEl.textContent = "";
+      pollAttempts = 0;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Upload failed");
+        }
+        const data = await res.json();
+        currentJobId = data.job_id;
+        statusEl.textContent = "Job started. Waiting for summary...";
+
+        pollStatus(3000);
+      } catch (e) {
+        statusEl.textContent = "Error: " + e.message;
+        uploadBtn.disabled = false;
+      }
+    });
+
+    async function pollStatus(delayMs = 3000) {
+      if (!currentJobId) return;
+      if (pollAttempts >= MAX_POLL_ATTEMPTS) {
+        statusEl.textContent = "Stopped polling after a long time. Please try again later.";
+        uploadBtn.disabled = false;
+        return;
+      }
+      pollAttempts += 1;
+
+      try {
+        const res = await fetch(`/api/status/${currentJobId}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Failed to fetch status");
+        }
+        const data = await res.json();
+
+        if (data.status === "COMPLETED") {
+          statusEl.textContent = "Summary completed. Fetching result...";
+          const sRes = await fetch(`/api/summarize/${currentJobId}`);
+          if (!sRes.ok) {
+            const err = await sRes.json().catch(() => ({}));
+            throw new Error(err.detail || "Failed to fetch summary");
+          }
+          const sData = await sRes.json();
+          summaryEl.textContent = sData.summary;
+          summaryEl.style.display = "block";
+          statusEl.textContent = "Done.";
+          uploadBtn.disabled = false;
+        } else if (data.status === "FAILED") {
+          statusEl.textContent = "Job failed: " + (data.error || "Unknown error");
+          uploadBtn.disabled = false;
+        } else {
+          statusEl.textContent = `Status: ${data.status}...`;
+          const nextDelay = Math.min(delayMs * 1.5, 15000);
+          setTimeout(() => pollStatus(nextDelay), nextDelay);
+        }
+      } catch (e) {
+        statusEl.textContent = "Error polling status: " + e.message;
+        uploadBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
+
