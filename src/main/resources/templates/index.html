@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Paper Summarizer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f4f8;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: #1a202c;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 0.95rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 36px;
+            width: 100%;
+            max-width: 560px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4299e1;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover { background: #3182ce; }
+
+        .error {
+            background: #fff5f5;
+            border: 1px solid #fc8181;
+            color: #c53030;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.88rem;
+        }
+
+        .note {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            color: #666;
+            margin-top: 16px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📄 Paper Summarizer</h1>
+    <p class="subtitle">Upload a research paper PDF and get an AI-generated summary</p>
+
+    <div class="card">
+
+        <!-- show error if something went wrong -->
+        <div class="error" th:if="${error}" th:text="${error}"></div>
+
+        <form method="post" action="/summarize" enctype="multipart/form-data" onsubmit="showLoading()">
+
+            <label for="title">Paper Title (optional)</label>
+            <input type="text" id="title" name="title" placeholder="e.g. Attention Is All You Need" />
+
+            <label for="file">Upload PDF</label>
+            <input type="file" id="file" name="file" accept=".pdf" required />
+
+            <button type="submit">Summarize Paper</button>
+        </form>
+
+        <div id="loading">
+            ⏳ Summarizing your paper, this may take 15–30 seconds...
+        </div>
+
+        <p class="note">Supports PDFs up to 20MB · Works on papers of any length</p>
+    </div>
+
+    <script>
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Initialize and force-push to GitHub",
+			"type": "shell",
+			"command": "powershell.exe",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location 'c:/project ai/fresher-summarizer'; if (-not (Test-Path .git)) { git init } ; git remote remove origin 2>$null; git remote add origin 'https://github.com/saud-prog07/LocalLLM-Paper-Summarizer.git'; git add -A; if (-not (git diff --cached --quiet)) { git commit -m 'Initial commit' } else { git commit --allow-empty -m 'Initial commit' }; git branch -M main; git push --force origin main"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}
